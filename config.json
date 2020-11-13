@@ -1,8 +1,8 @@
 {
-  "NumberNodes": [5],
-  "Duration": 1,
+  "NumberNodes": [100,200],
+  "Duration": 10,
   "Runs": 1,
-  "SaltLifetime": 1,
+  "SaltLifetime": 3000,
   "VisualEnabled": false,
   "DropOnUpdate": false,
   "NumberOutNeighbors": [20],
