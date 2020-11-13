@@ -1,5 +1,5 @@
 {
-  "NumberNodes": [100,200],
+  "NumberNodes": [100],
   "Duration": 10,
   "Runs": 1,
   "SaltLifetime": 3000,
@@ -9,5 +9,5 @@
   "mana": true,
   "R" : [10],
   "Ro" : [2],
-  "zipf": [100, 150]
+  "zipf": [100]
 }
