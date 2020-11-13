@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"net"
 	"os"
@@ -316,6 +317,9 @@ func statVisualizer() {
 func color(target, max, min uint64) string {
 	base := "0x1100"
 	//max-min : 255 = target-min : x
-	v := (target - min) * 255 / (max - min)
+	targetLog := math.Log10(float64(target))
+	maxLog := math.Log10(float64(max))
+	minLog := math.Log10(float64(min))
+	v := uint64(math.Round(float64(((targetLog) - (minLog)) * 255 / (maxLog - minLog))))
 	return base + fmt.Sprintf("%x", v)
 }
