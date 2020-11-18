@@ -103,6 +103,7 @@ func runSim(simCounter int, nuNodes int, nuNeighbors int, R int, Ro float64, Zip
 
 	log.Println("Creating peers ...")
 	netw := transport.NewNetwork()
+	//numNodesAdv := 1
 	nodeMap = make(map[identity.ID]simulation.Node, nuNodes)
 
 	for i := 0; i < nuNodes; i++ {
@@ -127,6 +128,38 @@ func runSim(simCounter int, nuNodes int, nuNeighbors int, R int, Ro float64, Zip
 		initialSalt = rand.Float64() * config.SaltLifetime().Seconds() // random
 	}
 	log.Println("Creating peers ... done")
+	// Setting adversary parameters
+	numNodesAdv := 0
+	advManaPercent := 0.1
+	// Creating advesray nodes
+	nodeMapAdv := make(map[identity.ID]simulation.Node, numNodesAdv)
+	for i := 0; i < numNodesAdv; i++ {
+		node := simulation.NewNode(
+			transport.PeerID(i+nuNodes),
+			time.Duration(initialSalt)*time.Second,
+			netw,
+			config.DropOnUpdate(),
+			discover,
+			config.Mana(),
+			numNodesAdv+nuNodes, // R
+			Ro,
+		)
+		nodeMapAdv[node.ID()] = node
+
+		if config.VisEnabled() {
+			visualizer.AddNode(node.ID().String())
+		}
+
+		// initialSalt = initialSalt + (1 / lambda)				 // constant rate
+		// initialSalt = initialSalt + rand.ExpFloat64()/lambda  // poisson process
+		initialSalt = rand.Float64() * config.SaltLifetime().Seconds() // random
+	}
+	log.Println("Creating adversaries ... done")
+
+	// merging the two nodeMaps
+	for _, node := range nodeMapAdv {
+		nodeMap[node.ID()] = nodeMapAdv[node.ID()]
+	}
 
 	log.Println("Populating mana ...")
 
@@ -134,11 +167,12 @@ func runSim(simCounter int, nuNodes int, nuNeighbors int, R int, Ro float64, Zip
 	for _, node := range nodeMap {
 		identities = append(identities, node.Peer().Identity)
 	}
-	simulation.IdentityMana = simulation.NewZipfMana(identities, Zipf)
+	//simulation.IdentityMana = simulation.NewZipfMana(identities, Zipf)
+	simulation.IdentityMana = simulation.NewZipfManaAdv(identities, Zipf, nuNodes, numNodesAdv, advManaPercent)
 	filenameMana := fmt.Sprint("./data/mana_list-", nuNodes, "-", nuNeighbors, "-", Zipf, "-", R, "-", Ro, "-", simCounter+1, ".txt")
 	fMana, err := os.Create(filenameMana)
-	defer fMana.Close()
-	for _, identity := range identities {
+	//defer fMana.Close()
+	for i, identity := range identities {
 		if config.Mana() {
 
 			if err != nil {
@@ -148,27 +182,55 @@ func runSim(simCounter int, nuNodes int, nuNeighbors int, R int, Ro float64, Zip
 		}
 		if config.VisEnabled() {
 			c := "0x666666"
-			if config.Mana() {
-				c = color(simulation.IdentityMana[identity], simulation.IdentityMana[identities[0]], simulation.IdentityMana[identities[len(identities)-1]])
+			if i < nuNodes {
+				c = color(simulation.IdentityMana[identity], simulation.IdentityMana[identities[0]], simulation.IdentityMana[identities[len(identities)-1-numNodesAdv]])
+			} else {
+				c = "0xFF3300"
 			}
 			visualizer.SetColor(identity.ID().String(), c)
 		}
 	}
-
 	log.Println("Populating mana ... done")
 
-	analysis := simulation.NewLinkAnalysis(nodeMap)
+	/*
+		log.Println("Populating mana adversary ...")
+
+		identitiesAdv := []*identity.Identity{}
+		for _, node := range nodeMapAdv {
+			identitiesAdv = append(identitiesAdv, node.Peer().Identity)
+		}
+		advManaPercent := 0.1
+		simulation.IdentityMana = simulation.NewZipfManaAdv(identities, Zipf, nuNodes, advManaPercent)
+
+		defer fMana.Close()
+		for _, identity := range identitiesAdv {
+			if config.Mana() {
+
+				if err != nil {
+					log.Fatalf("error opening file: %v", err)
+				}
+				appendToFile(fMana, fmt.Sprint(identity.ID(), simulation.IdentityMana[identity], "\n"))
+			}
+			if config.VisEnabled() {
+				//c := "0x1100" + fmt.Sprintf("%x", 255)
+				c := "0xFF3300"
+				visualizer.SetColor(identity.ID().String(), c)
+			}
+		}
+		log.Println("Populating mana adversary ... done")
+
+	*/
+	//analysis := simulation.NewLinkAnalysis(nodeMap)
 
 	if config.VisEnabled() {
 		statVisualizer()
 	}
 
 	log.Println("Starting peering ...")
-	analysis.Start()
+	//analysis.Start()
 	for _, node := range nodeMap {
 		node.Start()
 	}
-	log.Println("Starting peering ... done")
 
 	log.Println("Running ...")
 	time.Sleep(config.Duration())
@@ -177,33 +239,33 @@ func runSim(simCounter int, nuNodes int, nuNeighbors int, R int, Ro float64, Zip
 	for _, node := range nodeMap {
 		node.Stop()
 	}
-	analysis.Stop()
+	//analysis.Stop()
 	if config.VisEnabled() && config.Runs()-simCounter == 1 {
 		stopServer()
 	}
 	log.Println("Stopping peering ... done")
+	/*
+		// Start finalize simulation result
+		linkAnalysis := simulation.LinksToString(analysis.Links())
+		err = simulation.WriteCSV(linkAnalysis, "linkAnalysis", []string{"X", "Y"})
+		if err != nil {
+			log.Fatalln("error writing csv:", err)
+		}
+		//	log.Println(linkAnalysis)
 
-	// Start finalize simulation result
-	linkAnalysis := simulation.LinksToString(analysis.Links())
-	err = simulation.WriteCSV(linkAnalysis, "linkAnalysis", []string{"X", "Y"})
-	if err != nil {
-		log.Fatalln("error writing csv:", err)
-	}
-	//	log.Println(linkAnalysis)
+		convAnalysis := simulation.ConvergenceToString()
+		err = simulation.WriteCSV(convAnalysis, "convAnalysis", []string{"X", "Y"})
+		if err != nil {
+			log.Fatalln("error writing csv:", err)
+		}
 
-	convAnalysis := simulation.ConvergenceToString()
-	err = simulation.WriteCSV(convAnalysis, "convAnalysis", []string{"X", "Y"})
-	if err != nil {
-		log.Fatalln("error writing csv:", err)
-	}
-
-	msgAnalysis := simulation.MessagesToString(nodeMap, analysis.Status())
-	err = simulation.WriteCSV(msgAnalysis, "msgAnalysis", []string{"ID", "OUT", "ACC", "REJ", "IN", "DROP"})
-	if err != nil {
-		log.Fatalln("error writing csv:", err)
-	}
-
-	// old code for wcreating adjList_result.txt
+		msgAnalysis := simulation.MessagesToString(nodeMap, analysis.Status())
+		err = simulation.WriteCSV(msgAnalysis, "msgAnalysis", []string{"ID", "OUT", "ACC", "REJ", "IN", "DROP"})
+		if err != nil {
+			log.Fatalln("error writing csv:", err)
+		}
+	*/
+	// old code for creating adjList_result.txt
 	//f, err := os.OpenFile("./data/peering-results.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	//filename = fmt.Sprint("adjlist-", Zipf, "-", R, "-", Ro, "-", simCounter+1)
 	//err = simulation.WriteAdjlist(nodeMap, "adjlist")

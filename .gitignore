@@ -15,7 +15,7 @@ simulation
 autopeering
 !autopeering/
 autopeering-sim
-/data/
+data/*
 /dist/
 
 # Test binary, built with `go test -c`

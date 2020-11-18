@@ -1,13 +1,13 @@
 {
-  "NumberNodes": [100],
-  "Duration": 10,
+  "NumberNodes": [200],
+  "Duration": 30,
   "Runs": 1,
   "SaltLifetime": 3000,
   "VisualEnabled": false,
   "DropOnUpdate": false,
-  "NumberOutNeighbors": [20],
+  "NumberOutNeighbors": [4,5,6],
   "mana": true,
-  "R" : [10],
+  "R" : [10, 12, 14],
   "Ro" : [2],
   "zipf": [100]
 }
