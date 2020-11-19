@@ -33,7 +33,7 @@ source("auxFunctions.R")
 
 ### These are the values of N, k, s, R and rho
 N = 100
-k = 4
+k = 6
 s = 1
 R = 10
 rho = 2
@@ -73,9 +73,7 @@ for (M in 1:N)
 {
   eclipse_percentage[M] <- min_max_mana(M, adj_matrix, ID_mana$mana)
 }
+min(eclipse_percentage)
 
 plot(eclipse_percentage, type="l", xlab="M")
 
-goal_function = ((10 * avg_min_max_mana) / richest) - avg_diam
-## It's bad not to account for the difference in the number of neighbours and for the 
-## difference in the total sum of mana!
